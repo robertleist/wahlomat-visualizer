@@ -43,13 +43,18 @@ st.info("Wenn du gegenteilige Ansichten als negativen Wert werten willst, kannst
         "Übereinstimmung würde diese Frage als -1 gewertet werden.")
 advanced_agreement = st.toggle("Erweiterte Übereinstimmung")
 parties_unique = df["Partei: Kurzbezeichnung"].unique()
-parties = st.multiselect("Wähle Parteien zum Vergleichen der Übereinstimmung aus", parties_unique,
-                         default=parties_unique)
+with st.expander("Parteinauswahl (Standardmäßig alle)"):
+    parties = st.multiselect("Wähle Parteien zum Vergleichen der Übereinstimmung aus", parties_unique,
+                             default=parties_unique)
+with st.expander("Fragenauswahl (Standardmäßig alle)"):
+    questions = st.multiselect("Wähle Fragen zum Vergleichen der Übereinstimmung aus", df["These: Titel"].unique(),
+                               default=df["These: Titel"].unique())
 agreement = np.zeros((len(parties), len(parties)))
+overlap_df = df[df["These: Titel"].isin(questions)]
 for i, p1 in enumerate(parties):
     for j, p2 in enumerate(parties):
-        party1 = df[df["Partei: Kurzbezeichnung"] == p1]
-        party2 = df[df["Partei: Kurzbezeichnung"] == p2]
+        party1 = overlap_df[overlap_df["Partei: Kurzbezeichnung"] == p1]
+        party2 = overlap_df[overlap_df["Partei: Kurzbezeichnung"] == p2]
         if advanced_agreement:
             agreement_count = np.count_nonzero(
                 party1["Position: Position"].values == party2["Position: Position"].values)
@@ -61,11 +66,11 @@ for i, p1 in enumerate(parties):
                                    party2["Position: Position"].values == "stimme zu"),
                 )
             )
-            agreement[i, j] = (agreement_count - disagreement_count) / 38
+            agreement[i, j] = (agreement_count - disagreement_count) / len(questions)
         else:
             agreement[i, j] = (
                     np.count_nonzero(party1["Position: Position"].values == party2["Position: Position"].values)
-                    / 38)
+                    / len(questions))
 agreement_df = pd.DataFrame(agreement, columns=parties, index=parties)
 
 
