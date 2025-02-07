@@ -2,6 +2,7 @@ import numpy as np
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.cluster import KMeans, AgglomerativeClustering
@@ -73,7 +74,6 @@ for i, p1 in enumerate(parties):
                     / len(questions))
 agreement_df = pd.DataFrame(agreement, columns=parties, index=parties)
 
-
 # Function to color cells based on percentage
 def color_percentage_normal(val):
     color = f"rgb({255 - int(val * 255)}, {int(val * 255)}, 100)"  # Red to green
@@ -94,6 +94,40 @@ else:
     styled_agreement_df = agreement_df.style.format("{:.1%}").applymap(
         color_percentage_normal)
 st.dataframe(styled_agreement_df, use_container_width=True)
+
+st.subheader("Line Graph der Übereinstimmung")
+party = st.selectbox("Wähle eine Partei aus", parties)
+sorted_df = agreement_df.sort_values(by=[party], ascending=False) * 100
+pos_df = sorted_df[sorted_df[party] > 0]
+neg_df = sorted_df[sorted_df[party] < 0]
+fig = go.Figure()
+fig.add_trace(go.Scatter(
+    x=pos_df.index,
+    y=pos_df[party],
+    mode='lines+markers',
+    marker=dict(color='green', size=10),
+    line=dict(color='green'),
+    fill='tozeroy',
+    fillcolor='RGBA(0, 255, 0, 0.25)',
+    opacity=0.5
+))
+fig.add_trace(go.Scatter(
+    x=neg_df.index,
+    y=neg_df[party],
+    mode='lines+markers',
+    marker=dict(color='red', size=10),
+    line=dict(color='red'),
+    fill='tozeroy',
+    fillcolor='RGBA(255, 0, 0, 0.25)',
+))
+
+fig.update_layout(
+    title=f"Übereinstimmung von {party} mit anderen Parteien",
+    xaxis_title="Partei",
+    yaxis_title="Übereinstimmung",
+    height=900
+)
+st.plotly_chart(fig, height=900)
 
 st.header("Dimensionality Reduction und Clustering")
 st.markdown("Im folgenden könnt ihr die Parteien anhand ihrer Übereinstimmung clustern. Clustering Algorithmen sind "
