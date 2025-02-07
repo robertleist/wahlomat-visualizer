@@ -6,8 +6,26 @@ import plotly.graph_objects as go
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.cluster import KMeans, AgglomerativeClustering
+from scipy.spatial import ConvexHull
 import scipy.cluster.hierarchy as sch
 import matplotlib.pyplot as plt
+from matplotlib_venn import venn2, venn3
+
+
+def party_colors(party):
+    colors = {
+        "CDU / CSU": "black",
+        "SPD": "red",
+        "AfD": "blue",
+        "FDP": "yellow",
+        "Die Linke": "purple",
+        "GRÜNE": "green",
+    }
+    if party in colors:
+        return colors[party]
+    else:
+        return "grey"
+
 
 # st.set_page_config(layout="wide")
 st.title("Wahl-O-Mat Visualizer")
@@ -26,7 +44,7 @@ st.error("Ich garantiere nicht für die Richtigkeit der Daten oder des Codes. Bi
 st.warning("Es ist mir leider nicht gestattet, Funktionalitäten zu implementieren, die "
            "die eigene Position visualisieren. Das darf leider nur der Wahl-O-Mat selbst.")
 st.toast("Wenn du diese Seite auf dem PC öffnest, kannst du das Layout zu 'wide' ändern, um mehr Platz zu haben. Geh "
-        "dafür auf die drei Punkte oben rechts und wähle 'Settings -> Appearance -> Wide Mode'.")
+         "dafür auf die drei Punkte oben rechts und wähle 'Settings -> Appearance -> Wide Mode'.")
 st.subheader("Verbesserungsvorschläge")
 st.info("Wenn du Vorschläge oder Verbesserungen hast, kannst du diese gerne auf GitHub als "
         "[Issue](https://github.com/robertleist/wahlomat-visualizer/issues) oder als "
@@ -116,7 +134,120 @@ else:
     styled_agreement_df = agreement_df.style.format("{:.1%}").applymap(
         color_percentage_normal)
 st.dataframe(styled_agreement_df, use_container_width=True)
+st.subheader("Venn Diagram der Übereinstimmung")
+st.info("Im folgenden kannst du die Übereinstimmung zwischen drei Parteien visualisieren. "
+        "Das Venn Diagram zeigt die Anzahl der gleichen Antworten und der unterschiedlichen Antworten an."
+        "Die Farbe der Punkte gibt an, wie die Parteien geantwortet haben. Grün bedeutet 'stimme zu', blau bedeutet "
+        "'neutral' und rot bedeutet 'stimme nicht zu'. Durch Hovern über die Punkte kannst du die Fragen sehen.")
+parties_venn = st.multiselect("Wähle Parteien für das Venn Diagram aus", parties, max_selections=3)
 
+
+def jitter_points(x, y, num_points, scale=0.1):
+    return np.column_stack((np.random.normal(x, scale, num_points), np.random.normal(y, scale, num_points)))
+
+
+if len(parties_venn) != 3:
+    st.warning("Bitte wähle drei Parteien aus.")
+else:
+    party1_df = overlap_df[overlap_df["Partei: Kurzbezeichnung"] == parties_venn[0]]
+    party2_df = overlap_df[overlap_df["Partei: Kurzbezeichnung"] == parties_venn[1]]
+    party3_df = overlap_df[overlap_df["Partei: Kurzbezeichnung"] == parties_venn[2]]
+    party1_venn = party1_df["Position: Position"].values
+    party2_venn = party2_df["Position: Position"].values
+    party3_venn = party3_df["Position: Position"].values
+    all_same = np.logical_and(np.logical_and(party1_venn == party2_venn, party2_venn == party3_venn),
+                              party1_venn == party3_venn)
+    p1p2 = np.logical_and(party1_venn == party2_venn, party1_venn != party3_venn)
+    p1p3 = np.logical_and(party1_venn == party3_venn, party1_venn != party2_venn)
+    p2p3 = np.logical_and(party2_venn == party3_venn, party2_venn != party1_venn)
+    p1 = np.logical_not(np.logical_or(all_same, np.logical_or(p1p2, p1p3)))
+    p2 = np.logical_not(np.logical_or(all_same, np.logical_or(p1p2, p2p3)))
+    p3 = np.logical_not(np.logical_or(all_same, np.logical_or(p1p3, p2p3)))
+
+    # Generate jittered points
+    points_all_same = jitter_points(0, 0, np.sum(all_same))
+    points_p1p2 = jitter_points(0, 1, np.sum(p1p2))
+    points_p1p3 = jitter_points(-1, -0.5, np.sum(p1p3))
+    points_p2p3 = jitter_points(1, -0.5, np.sum(p2p3))
+    points_p1 = jitter_points(-1, 0.5, np.sum(p1))
+    points_p2 = jitter_points(1, 0.5, np.sum(p2))
+    points_p3 = jitter_points(0, -1, np.sum(p3))
+
+
+    def convex_hull_points(points):
+        points = np.array(points)  # Ensure input is a NumPy array
+        if len(points) < 3:
+            return points  # Return the same points without modification
+
+        hull = ConvexHull(points)
+        hull_points = points[hull.vertices]  # Extract actual hull points
+        centroid = np.mean(hull_points, axis=0)
+        expanded_points = centroid + (hull_points - centroid) * 1.2  # Scale outward
+        return np.vstack([expanded_points, expanded_points[0]])
+
+
+    hull_p1 = convex_hull_points(np.concatenate([points_p1, points_p1p2, points_p1p3, points_all_same], axis=0))
+    hull_p2 = convex_hull_points(np.concatenate([points_p2, points_p1p2, points_p2p3, points_all_same], axis=0))
+    hull_p3 = convex_hull_points(np.concatenate([points_p3, points_p1p3, points_p2p3, points_all_same], axis=0))
+
+    all_same_text = party1_df["These: Titel"][all_same]
+    p1p2_text = party1_df["These: Titel"][p1p2]
+    p1p3_text = party1_df["These: Titel"][p1p3]
+    p2p3_text = party2_df["These: Titel"][p2p3]
+    p1_text = party1_df["These: Titel"][p1]
+    p2_text = party2_df["These: Titel"][p2]
+    p3_text = party3_df["These: Titel"][p3]
+
+
+    def answer_to_color(answer):
+        if answer == "stimme zu":
+            return "green"
+        elif answer == "neutral":
+            return "blue"
+        else:
+            return "red"
+
+
+    all_same_answer = party1_df["Position: Position"][all_same].map(answer_to_color)
+    p1p2_answer = party1_df["Position: Position"][p1p2].map(answer_to_color)
+    p1p3_answer = party1_df["Position: Position"][p1p3].map(answer_to_color)
+    p2p3_answer = party2_df["Position: Position"][p2p3].map(answer_to_color)
+    p1_answer = party1_df["Position: Position"][p1].map(answer_to_color)
+    p2_answer = party2_df["Position: Position"][p2].map(answer_to_color)
+    p3_answer = party3_df["Position: Position"][p3].map(answer_to_color)
+
+    fig = go.Figure(layout=dict(height=900))
+    # Add the hulls
+    fig.add_trace(go.Scatter(x=hull_p1[:, 0], y=hull_p1[:, 1], mode='lines', name=f"{parties_venn[0]}",
+                             line=dict(color=party_colors(parties_venn[0]), width=2), fill='toself'))
+    fig.add_trace(go.Scatter(x=hull_p2[:, 0], y=hull_p2[:, 1], mode='lines', name=f"{parties_venn[1]}",
+                             line=dict(color=party_colors(parties_venn[1]), width=2), fill='toself'))
+    fig.add_trace(go.Scatter(x=hull_p3[:, 0], y=hull_p3[:, 1], mode='lines', name=f"{parties_venn[2]}",
+                             line=dict(color=party_colors(parties_venn[2]), width=2), fill='toself'))
+
+    # Add the scatter points
+    fig.add_trace(go.Scatter(x=points_all_same[:, 0], y=points_all_same[:, 1], mode='markers', name="Alle gleich",
+                             marker=dict(color=all_same_answer, size=10), text=all_same_text, showlegend=False))
+    fig.add_trace(go.Scatter(x=points_p1p2[:, 0], y=points_p1p2[:, 1], mode='markers',
+                             name=f"{parties_venn[0]} und {parties_venn[1]}",
+                             marker=dict(color=p1p2_answer, size=10), text=p1p2_text, showlegend=False))
+    fig.add_trace(go.Scatter(x=points_p1p3[:, 0], y=points_p1p3[:, 1], mode='markers',
+                             name=f"{parties_venn[0]} und {parties_venn[2]}",
+                             marker=dict(color=p1p3_answer, size=10), text=p1p3_text, showlegend=False))
+    fig.add_trace(go.Scatter(x=points_p2p3[:, 0], y=points_p2p3[:, 1], mode='markers',
+                             name=f"{parties_venn[1]} und {parties_venn[2]}",
+                             marker=dict(color=p2p3_answer, size=10), text=p2p3_text, showlegend=False))
+    fig.add_trace(go.Scatter(x=points_p1[:, 0], y=points_p1[:, 1], mode='markers',
+                             name=f"{parties_venn[0]}",
+                             marker=dict(color=p1_answer, size=10), text=p1_text, showlegend=False))
+    fig.add_trace(go.Scatter(x=points_p2[:, 0], y=points_p2[:, 1], mode='markers',
+                             name=f"{parties_venn[1]}",
+                             marker=dict(color=p2_answer, size=10), text=p2_text, showlegend=False))
+    fig.add_trace(go.Scatter(x=points_p3[:, 0], y=points_p3[:, 1], mode='markers',
+                             name=f"{parties_venn[2]}",
+                             marker=dict(color=p3_answer, size=10), text=p3_text, showlegend=False))
+
+    st.plotly_chart(fig, height=900)
 st.subheader("Line Graph der Übereinstimmung")
 party = st.selectbox("Wähle eine Partei aus", parties)
 sorted_df = agreement_df.sort_values(by=[party], ascending=False) * 100
