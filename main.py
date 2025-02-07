@@ -9,7 +9,6 @@ from sklearn.cluster import KMeans, AgglomerativeClustering
 from scipy.spatial import ConvexHull
 import scipy.cluster.hierarchy as sch
 import matplotlib.pyplot as plt
-from matplotlib_venn import venn2, venn3
 
 
 def party_colors(party):
