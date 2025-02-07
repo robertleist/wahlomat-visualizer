@@ -18,10 +18,16 @@ st.markdown(
     "Es dient der Visualisierung von Aussagen der Parteien zum "
     "[Wahl-O-Mat zur Bundestagswahl 2025](https://www.wahl-o-mat.de/bundestagswahl2025/app/main_app.html). "
     "Der Datensatz ist verfügbar unter: https://www.bpb.de/themen/wahl-o-mat/bundestagswahl-2025/558463/download/")
+st.error("Dieses Dashboard/Analyse ist nicht von der Bundeszentrale für politische Bildung (bpb) oder dem "
+         "Wahl-O-Mat erstellt.")
+st.error("Ich garantiere nicht für die Richtigkeit der Daten oder des Codes. Bitte überprüfe die Daten und den Code"
+         " selbst, bevor du sie "
+         "verwendest.")
 st.warning("Es ist mir leider nicht gestattet, Funktionalitäten zu implementieren, die "
            "die eigene Position visualisieren. Das darf leider nur der Wahl-O-Mat selbst.")
-st.info("Wenn du diese Seite auf dem PC öffnest, kannst du das Layout zu 'wide' ändern, um mehr Platz zu haben. Geh "
+st.toast("Wenn du diese Seite auf dem PC öffnest, kannst du das Layout zu 'wide' ändern, um mehr Platz zu haben. Geh "
         "dafür auf die drei Punkte oben rechts und wähle 'Settings -> Appearance -> Wide Mode'.")
+st.subheader("Verbesserungsvorschläge")
 st.info("Wenn du Vorschläge oder Verbesserungen hast, kannst du diese gerne auf GitHub als "
         "[Issue](https://github.com/robertleist/wahlomat-visualizer/issues) oder als "
         "[Pull Request](https://github.com/robertleist/wahlomat-visualizer/pulls) einreichen.")
