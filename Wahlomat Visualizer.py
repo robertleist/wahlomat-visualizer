@@ -36,13 +36,24 @@ with st.expander("Fragen und Antworten"):
              "implementieren.")
 
 st.header("Übereinstimmung zwischen Parteien")
-st.markdown("Im folgenden könnt ihr die Übereinstimmung zwischen Parteien visualisieren, wobei Übereinstimmung als der "
-            "prozentuale Anteil gleicher Antworten definiert ist.")
+st.markdown("""
+Im folgenden kannst du die Übereinstimmung zwischen Parteien visualisieren, wobei du mehrere Metriken auswählen kannst:
+
+- **Prozentuale Übereinstimmung**: Wird als Anteil der gleichen Antworten berechnet.  
+- **Erweiterte Übereinstimmung**: Wird als Anteil der gleichen Antworten minus der gegenteiligen Antworten berechnet.  
+- **Korrelationskoeffizienten**: Zeigen die Korrelation zwischen den Übereinstimmungen der Parteien an. Kann auf Basis
+    einer der anderen Metriken berechnet werden. 
+""")
+
+metric = st.radio("Wähle die Metrik zur Berechnung der Übereinstimmung",
+                  ["Prozentuale Übereinstimmung",
+                   "Erweiterte Übereinstimmung",
+                   "Korrelationskoeffizienten (Für prozentuale Ü.)",
+                   "Korrelationskoeffizienten (Für erweiterte Ü.)"])
 st.info("Wenn du gegenteilige Ansichten als negativen Wert werten willst, kannst du diesen Switch drücken."
         "   Beispiel: Wenn Partei A zustimmt und Partei B nicht "
         "zustimmt, dann wird die Übereinstimmung für diese Frage normalerweise als 0 gewertet. In der erweiterten "
         "Übereinstimmung würde diese Frage als -1 gewertet werden.")
-advanced_agreement = st.toggle("Erweiterte Übereinstimmung")
 parties_unique = df["Partei: Kurzbezeichnung"].unique()
 with st.expander("Parteinauswahl (Standardmäßig alle)"):
     parties = st.multiselect("Wähle Parteien zum Vergleichen der Übereinstimmung aus", parties_unique,
@@ -52,6 +63,7 @@ with st.expander("Fragenauswahl (Standardmäßig alle)"):
                                default=df["These: Titel"].unique())
 agreement = np.zeros((len(parties), len(parties)))
 overlap_df = df[df["These: Titel"].isin(questions)]
+advanced_agreement = metric == "Erweiterte Übereinstimmung" or metric == "Korrelationskoeffizienten (Für erweiterte Ü.)"
 for i, p1 in enumerate(parties):
     for j, p2 in enumerate(parties):
         party1 = overlap_df[overlap_df["Partei: Kurzbezeichnung"] == p1]
@@ -72,7 +84,11 @@ for i, p1 in enumerate(parties):
             agreement[i, j] = (
                     np.count_nonzero(party1["Position: Position"].values == party2["Position: Position"].values)
                     / len(questions))
+
 agreement_df = pd.DataFrame(agreement, columns=parties, index=parties)
+if "Korrelationskoeffizient" in metric:
+    agreement_df = agreement_df.corr()
+
 
 # Function to color cells based on percentage
 def color_percentage_normal(val):
@@ -158,6 +174,7 @@ df_filtered = df[df["These: Titel"].isin(questions_to_include)]
 df_filtered = df_filtered[df_filtered["Partei: Kurzbezeichnung"].isin(parties_to_include)]
 df_to_reduce = df_filtered.pivot(index="Partei: Kurzbezeichnung", columns="These: Titel", values="Position: Position")
 
+
 def map_answers(x):
     if x == "stimme zu":
         return 1
@@ -165,6 +182,7 @@ def map_answers(x):
         return 0
     else:
         return -1
+
 
 df_to_reduce = df_to_reduce.map(map_answers)
 
@@ -177,7 +195,6 @@ else:
                "empfehle ich PCA.")
     tsne = TSNE(n_components=2, perplexity=5, n_iter=5000)
     reduced = tsne.fit_transform(df_to_reduce)
-
 
 # Clustering
 if clu_algo == "KMeans":
@@ -199,7 +216,8 @@ if clu_algo == "Hierarchical Clustering":
 
 # Plot
 fig = px.scatter(reduced_df, x="x", y="y", text=reduced_df.index, color=reduced_df["Cluster"].astype(str),
-                 title="Dimensionality Reduction und Clustering", color_discrete_sequence=px.colors.qualitative.Set1)
+                 title="Dimensionality Reduction und Clustering", color_discrete_sequence=px.colors.qualitative.Set1,
+                 height=900)
 fig.update_traces(textposition='top center', marker=dict(size=10))
 fig.update_xaxes(showticklabels=False)
 fig.update_yaxes(showticklabels=False)
