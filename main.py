@@ -160,9 +160,9 @@ fig.update_layout(
     title=f"Übereinstimmung von {party} mit anderen Parteien",
     xaxis_title="Partei",
     yaxis_title="Übereinstimmung",
-    height=900
+    height=600
 )
-st.plotly_chart(fig, height=900)
+st.plotly_chart(fig, height=600)
 st.subheader("Venn Diagram der Übereinstimmung")
 st.info("Im folgenden kannst du die Übereinstimmung zwischen drei Parteien visualisieren. "
         "Das Venn Diagram zeigt die Anzahl der gleichen Antworten und der unterschiedlichen Antworten an."
@@ -259,7 +259,7 @@ else:
     }, index=party1_df["These: These"].values)
     st.dataframe(venn_df, use_container_width=True)
 
-    fig = go.Figure(layout=dict(height=900))
+    fig = go.Figure(layout=dict(height=600))
     # Add the hulls
     fig.add_trace(go.Scatter(x=hull_p1[:, 0], y=hull_p1[:, 1], mode='lines', name=f"{parties_venn[0]}",
                              line=dict(color=party_colors(parties_venn[0]), width=2), fill='toself'))
@@ -290,7 +290,7 @@ else:
                              name=f"{parties_venn[2]}",
                              marker=dict(color=p3_answer, size=10), text=p3_text, showlegend=False))
 
-    st.plotly_chart(fig, height=900)
+    st.plotly_chart(fig, height=600)
 
 st.header("Dimensionality Reduction und Clustering")
 st.markdown("Im folgenden könnt ihr die Parteien anhand ihrer Übereinstimmung clustern. Clustering Algorithmen sind "
@@ -381,7 +381,7 @@ if clu_algo == "Hierarchical Clustering":
 # Plot
 fig = px.scatter(reduced_df, x="x", y="y", text=reduced_df.index, color=reduced_df["Cluster"].astype(str),
                  title="Dimensionality Reduction und Clustering", color_discrete_sequence=px.colors.qualitative.Set1,
-                 height=900)
+                 height=600)
 fig.update_traces(textposition='top center', marker=dict(size=10))
 fig.update_xaxes(showticklabels=False, title="Hauptkomponente 1")
 fig.update_yaxes(showticklabels=False, title="Hauptkomponente 2")
