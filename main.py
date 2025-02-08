@@ -62,8 +62,9 @@ st.header("Übereinstimmung zwischen Parteien")
 st.markdown("""
 Im folgenden kannst du die Übereinstimmung zwischen Parteien visualisieren, wobei du mehrere Metriken auswählen kannst:
 
-- **Prozentuale Übereinstimmung**: Wird als Anteil der gleichen Antworten berechnet.  
-- **Erweiterte Übereinstimmung**: Wird als Anteil der gleichen Antworten minus der gegenteiligen Antworten berechnet.  
+- **Prozentuale Übereinstimmung**: Wird als Anteil der gleichen Antworten berechnet. Gleiche Antwort = 1; Unterschiedliche Antwort = 0.  
+- **Erweiterte Übereinstimmung**: Wird als Anteil der gleichen Antworten minus der gegenteiligen Antworten berechnet. 
+    Gleiche Antwort = 1; Einer neutral, einer anders = 0; Gegenteilige Antwort = -1.  
 - **Korrelationskoeffizienten**: Zeigen die Korrelation zwischen den Übereinstimmungen der Parteien an. Kann auf Basis
     einer der anderen Metriken berechnet werden. 
 """)
@@ -73,10 +74,6 @@ metric = st.radio("Wähle die Metrik zur Berechnung der Übereinstimmung",
                    "Erweiterte Übereinstimmung",
                    "Korrelationskoeffizienten (Für prozentuale Ü.)",
                    "Korrelationskoeffizienten (Für erweiterte Ü.)"])
-st.info("Wenn du gegenteilige Ansichten als negativen Wert werten willst, kannst du diesen Switch drücken."
-        "   Beispiel: Wenn Partei A zustimmt und Partei B nicht "
-        "zustimmt, dann wird die Übereinstimmung für diese Frage normalerweise als 0 gewertet. In der erweiterten "
-        "Übereinstimmung würde diese Frage als -1 gewertet werden.")
 parties_unique = df["Partei: Kurzbezeichnung"].unique()
 with st.expander("Parteinauswahl (Standardmäßig alle)"):
     parties = st.multiselect("Wähle Parteien zum Vergleichen der Übereinstimmung aus", parties_unique,
@@ -133,6 +130,39 @@ else:
     styled_agreement_df = agreement_df.style.format("{:.1%}").applymap(
         color_percentage_normal)
 st.dataframe(styled_agreement_df, use_container_width=True)
+st.subheader("Line Graph der Übereinstimmung")
+party = st.selectbox("Wähle eine Partei aus", parties)
+sorted_df = agreement_df.sort_values(by=[party], ascending=False) * 100
+pos_df = sorted_df[sorted_df[party] > 0]
+neg_df = sorted_df[sorted_df[party] < 0]
+fig = go.Figure()
+fig.add_trace(go.Scatter(
+    x=pos_df.index,
+    y=pos_df[party],
+    mode='lines+markers',
+    marker=dict(color='green', size=10),
+    line=dict(color='green'),
+    fill='tozeroy',
+    fillcolor='RGBA(0, 255, 0, 0.25)',
+    opacity=0.5
+))
+fig.add_trace(go.Scatter(
+    x=neg_df.index,
+    y=neg_df[party],
+    mode='lines+markers',
+    marker=dict(color='red', size=10),
+    line=dict(color='red'),
+    fill='tozeroy',
+    fillcolor='RGBA(255, 0, 0, 0.25)',
+))
+
+fig.update_layout(
+    title=f"Übereinstimmung von {party} mit anderen Parteien",
+    xaxis_title="Partei",
+    yaxis_title="Übereinstimmung",
+    height=900
+)
+st.plotly_chart(fig, height=900)
 st.subheader("Venn Diagram der Übereinstimmung")
 st.info("Im folgenden kannst du die Übereinstimmung zwischen drei Parteien visualisieren. "
         "Das Venn Diagram zeigt die Anzahl der gleichen Antworten und der unterschiedlichen Antworten an."
@@ -247,39 +277,7 @@ else:
                              marker=dict(color=p3_answer, size=10), text=p3_text, showlegend=False))
 
     st.plotly_chart(fig, height=900)
-st.subheader("Line Graph der Übereinstimmung")
-party = st.selectbox("Wähle eine Partei aus", parties)
-sorted_df = agreement_df.sort_values(by=[party], ascending=False) * 100
-pos_df = sorted_df[sorted_df[party] > 0]
-neg_df = sorted_df[sorted_df[party] < 0]
-fig = go.Figure()
-fig.add_trace(go.Scatter(
-    x=pos_df.index,
-    y=pos_df[party],
-    mode='lines+markers',
-    marker=dict(color='green', size=10),
-    line=dict(color='green'),
-    fill='tozeroy',
-    fillcolor='RGBA(0, 255, 0, 0.25)',
-    opacity=0.5
-))
-fig.add_trace(go.Scatter(
-    x=neg_df.index,
-    y=neg_df[party],
-    mode='lines+markers',
-    marker=dict(color='red', size=10),
-    line=dict(color='red'),
-    fill='tozeroy',
-    fillcolor='RGBA(255, 0, 0, 0.25)',
-))
 
-fig.update_layout(
-    title=f"Übereinstimmung von {party} mit anderen Parteien",
-    xaxis_title="Partei",
-    yaxis_title="Übereinstimmung",
-    height=900
-)
-st.plotly_chart(fig, height=900)
 
 st.header("Dimensionality Reduction und Clustering")
 st.markdown("Im folgenden könnt ihr die Parteien anhand ihrer Übereinstimmung clustern. Clustering Algorithmen sind "
