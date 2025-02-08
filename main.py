@@ -171,7 +171,7 @@ st.info("Im folgenden kannst du die Übereinstimmung zwischen drei Parteien visu
 parties_venn = st.multiselect("Wähle Parteien für das Venn Diagram aus", parties, max_selections=3)
 
 
-def jitter_points(x, y, num_points, scale=0.1):
+def jitter_points(x, y, num_points, scale=0.2):
     return np.column_stack((np.random.normal(x, scale, num_points), np.random.normal(y, scale, num_points)))
 
 
@@ -245,6 +245,20 @@ else:
     p2_answer = party2_df["Position: Position"][p2].map(answer_to_color)
     p3_answer = party3_df["Position: Position"][p3].map(answer_to_color)
 
+    def map_answers(x):
+        if x == "stimme zu":
+            return "✔️"
+        elif x == "neutral":
+            return "⚪"
+        else:
+            return "❌"
+    venn_df = pd.DataFrame({
+        parties_venn[0]: party1_df["Position: Position"].map(map_answers).values,
+        parties_venn[1]: party2_df["Position: Position"].map(map_answers).values,
+        parties_venn[2]: party3_df["Position: Position"].map(map_answers).values,
+    }, index=party1_df["These: These"].values)
+    st.dataframe(venn_df, use_container_width=True)
+
     fig = go.Figure(layout=dict(height=900))
     # Add the hulls
     fig.add_trace(go.Scatter(x=hull_p1[:, 0], y=hull_p1[:, 1], mode='lines', name=f"{parties_venn[0]}",
@@ -260,7 +274,7 @@ else:
     fig.add_trace(go.Scatter(x=points_p1p2[:, 0], y=points_p1p2[:, 1], mode='markers',
                              name=f"{parties_venn[0]} und {parties_venn[1]}",
                              marker=dict(color=p1p2_answer, size=10), text=p1p2_text, showlegend=False))
-    fig.add_trace(go.Scatter(x=points_p1p3[:, 0], y=points_p1p3[:, 1], mode='markers',
+    fig.add_trace(go.Scatter(x=points_p1p3[:, 0], y=points_p1p3[:, 1], mode='markers', textposition='top center',
                              name=f"{parties_venn[0]} und {parties_venn[2]}",
                              marker=dict(color=p1p3_answer, size=10), text=p1p3_text, showlegend=False))
     fig.add_trace(go.Scatter(x=points_p2p3[:, 0], y=points_p2p3[:, 1], mode='markers',
@@ -277,7 +291,6 @@ else:
                              marker=dict(color=p3_answer, size=10), text=p3_text, showlegend=False))
 
     st.plotly_chart(fig, height=900)
-
 
 st.header("Dimensionality Reduction und Clustering")
 st.markdown("Im folgenden könnt ihr die Parteien anhand ihrer Übereinstimmung clustern. Clustering Algorithmen sind "
@@ -324,9 +337,26 @@ df_to_reduce = df_to_reduce.map(map_answers)
 if dim_algo == "PCA":
     pca = PCA(n_components=2)
     reduced = pca.fit_transform(df_to_reduce)
+    with st.expander("PCA Details"):
+        st.write(f"Einfluss der Thesen auf Hauptkomponenten. ")
+        st.info(f"Positive Zahlen (grün) bedeuten, dass das Zustimmen zur "
+                f"These die"
+                f" Hauptkomponente erhöht, negative Zahlen (blau) bedeuten, dass das Zustimmen zur These die "
+                f"Hauptkomponente"
+                f" verringert. Oder anders gesagt, Zustimmen zu grünen Thesen verschiebt den Punkt in die positive "
+                f"Richtung auf der zugehörigen Hauptkomponente und andersherum.")
+        var_df = pd.DataFrame(pca.components_,
+                              columns=df_to_reduce.columns,
+                              index=["Hauptkomponente 1", "Hauptkomponente 2"]).transpose()
+        # Stil-Funktion mit Balken
+        styled_df = var_df.style.background_gradient(cmap="viridis").bar(
+            subset=["Hauptkomponente 1", "Hauptkomponente 2"], color='#1f77b4')
+
+        # In Streamlit anzeigen
+        st.dataframe(styled_df, use_container_width=True)
 else:
-    st.warning("t-SNE kann unterschiedliche Ergebnisse lieferen pro Durchlauf. Für reproduzierbare Ergebnisse "
-               "empfehle ich PCA.")
+    st.info("t-SNE kann unterschiedliche Ergebnisse lieferen pro Durchlauf. Für reproduzierbare Ergebnisse "
+            "empfehle ich PCA.")
     tsne = TSNE(n_components=2, perplexity=5, n_iter=5000)
     reduced = tsne.fit_transform(df_to_reduce)
 
@@ -353,6 +383,6 @@ fig = px.scatter(reduced_df, x="x", y="y", text=reduced_df.index, color=reduced_
                  title="Dimensionality Reduction und Clustering", color_discrete_sequence=px.colors.qualitative.Set1,
                  height=900)
 fig.update_traces(textposition='top center', marker=dict(size=10))
-fig.update_xaxes(showticklabels=False)
-fig.update_yaxes(showticklabels=False)
+fig.update_xaxes(showticklabels=False, title="Hauptkomponente 1")
+fig.update_yaxes(showticklabels=False, title="Hauptkomponente 2")
 st.plotly_chart(fig)
